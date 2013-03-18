@@ -10,8 +10,15 @@
 *.so
 *.so.*
 *.dylib
+*.elf
+*.elf.ihex
 
 # Executables
 *.exe
 *.out
 *.app
+
+# board / schematic backups
+*.b#*
+*.s#*
+
