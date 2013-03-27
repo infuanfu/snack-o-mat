@@ -1,6 +1,46 @@
 
+#include <avr/io.h>
+#include <avr/interrupt.h>
 #include <util/delay.h>
+#include <string.h>
 #include "firmware.h"
+
+
+/** 
+ * this is the SPI send buffer
+ */
+char buffer[20];
+volatile char telegram[20];
+volatile int bufferPointer = 0;
+volatile int hasComma = 0;
+volatile int newTelegram = 0;
+
+
+
+/** 
+ * 
+ * ISR to recieve data from SPI 
+ */
+ISR (SPI_STC_vect) {
+  char x = SPDR;
+  buffer[bufferPointer++] = convert(x);
+
+  if (x == 0x2E) {
+    hasComma = 1;
+  } else if ( (!hasComma && bufferPointer  >= 11) || bufferPointer >= 12) {
+		// store recieved message
+    strncpy(telegram, &buffer[hasComma ? 2 : 1], 13);
+    memset(buffer, 0, 20);
+
+		// reset parsing engine
+    bufferPointer = 0;
+    hasComma = 0;
+
+		// inform about newly recieved message
+    newTelegram = 1;
+  }
+}
+
 
 /** 
  * starting point of the firmware
@@ -11,39 +51,28 @@ int main(void)
 	uart_init();
 	spi_init();
 
-	int i;
-	for (i=0;i<3;i++) {
-	  _delay_ms(1000);
-	}
+	_delay_ms(3000);
 
 	// initial message: so that we get to see something.
 	uart_sendString("\r\nConnected!");
 
+  sei();
+
 	// loop forever here.
 	while (1) {
-		char buffer[13];
-		int i, j, k;
-		int hasComma = 0;
+		int k;
 
-		memset(buffer, 0, 13);
+    if (newTelegram != 0) {
+  		// send to the new VF-Display
+	  	uart_sendString("\r\n");
+      
+		  for (k = 0; k < 10; k++) {
+		  	uart_sendByte(telegram[k]);
+		  }
 
-		// read the data from SPI
-		for (i = 0, j = 0; i < 11; i++, j++) {
-			char x = spi_read();
-
-			buffer[j] = convert( x );
-			if (x == 0x2E) {
-				hasComma = 1;
-				i--;
-			}
+      newTelegram = 0;
 		}
-
-		// send to the new VF-Display-
-		uart_sendString("\r\n");
-		for (k = hasComma ? 2 : 1; k < 12; k++) {
-			uart_sendByte(buffer[k]);
-		}
-	} 
+	}
 } 
 
 

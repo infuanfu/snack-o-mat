@@ -11,7 +11,7 @@ void spi_init() {
 	DDRB |= (1 << DDB4);
 
 	/* Enable SPI */
-	SPCR = (1<<SPE);
+	SPCR = _BV(SPE) | _BV(SPIE);
 }
 
 /** 
@@ -19,7 +19,7 @@ void spi_init() {
  */
 char spi_read() {
 	/* Wait for reception complete */
-	while(!(SPSR & (1<<SPIF)))
+	while(!(SPSR & _BV(SPIF)))
 		;
 
 	/* Return Data Register */
